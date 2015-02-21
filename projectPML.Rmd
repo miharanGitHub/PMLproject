@@ -1,0 +1,106 @@
+---
+title: "Weight Lifting Exercise Dataset Research"
+output: html_document
+---
+
+## Abstract
+This document is a report of the results of the modeling project, which is done in order to fulfill the requirements of the Coursera course "Practical Machine Learning". The goal of the modeling project is to build a statistical model which can predict the type of the weight lifting exercise activity. In this work the random forest model is used from the caret package. Before the actual model building the data set was pre-processed, that is, some redundant variables have been removed. I consider redundant all variables which have no variation, have only NA or have no relation to the output variable "classe", for example user name or time of the exercise. The remaning data set was centered, scaled and pca analysis applied. Finally, from 159 variables only set of 25 pca-transformed variables are used for the model training. For the model building the dataset was divided into the training($60\%$) and testing($40\%$) sets. The training set was used for actual model training and the out of sample model error was estimated over the testing data set records, which shows accuracy about $97\%$. After that, the model has been used for test cases prediction.    
+
+
+## Data loading and modification
+```{r}
+library(caret)
+library(randomForest)
+training_URL<-"http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+test_URL<-"http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+trainSet<-read.csv(training_URL,na.strings=c("NA",""))
+testSet<-read.csv(test_URL,na.strings=c("NA",""))
+```
+
+This function is a hepler function which find index of fields with no variation or full of missing values.
+
+```{r}
+un<-function(x){
+  if(length(unique(x))==1) {out <- FALSE
+  } else {out <- TRUE
+  }
+  out
+}
+```
+
+Train and test sets are cleaned from redundant fields. Additionally, the train set is cleaned from rows containing missing values. 
+```{r}
+ind<-apply(testSet, 2, un)
+testSet<-testSet[,ind]
+trainSet<-subset(trainSet, select=c(names(testSet)[-length(testSet)], "classe"))
+vars<- c("X","num_window", "user_name", "raw_timestamp_part_1","raw_timestamp_part_2", "cvtd_timestamp")
+trainSet<-trainSet[,!(names(trainSet) %in% vars)]
+testSet<-testSet[,!(names(testSet) %in% vars)]
+trainSet<-trainSet[complete.cases(trainSet), ]
+```
+## Pre-processing
+
+Before pre-rpocessing I have removed the classe variable from the train set and problem_id variable form the test set. The data is centered, sclaled and pca-transformation is used. The first 25 pca-variables are used for modeling, these variables explain about $95\%$ of variation.
+```{r}
+class<-trainSet$classe
+trainSet<-trainSet[,-53]
+testSet<-testSet[,-53]
+prepro = preProcess(trainSet, method=c("center", "scale", "pca"))
+PC = predict(prepro, trainSet)
+PCtest = predict(prepro, testSet)
+dataSet<-data.frame(PC, class)
+```
+
+## Model training
+
+Divide to training and testing.
+```{r}
+set.seed(11111)
+inTrain <- createDataPartition(dataSet$class, p = 0.6, list=FALSE)
+training <-dataSet[inTrain,]
+testing <- dataSet[-inTrain,]
+```
+
+Train the random forest model.
+
+```{r}
+trControl <- trainControl(method = "cv",number=5)
+set.seed(12345)
+model <- train(class~.,data=training,
+               method = "rf", scale = F,
+               trControl = trControl)
+model
+plot(model)
+```
+
+From the plot we can see that the modeling algorithm have selected the smallest value (mtry=2 for the number of variables available for splitting at each tree node), which is used in final model. Let's check the out of sample accuracy over the testing set.
+
+```{r}
+pred<-predict(model, testing, type="raw")
+confusionMatrix(testing$class, pred)
+```
+
+The results are pretty good, over the test set we have overall accuracy about $97\%$ with very narrow confidence intervals.  
+
+## Test case prediction
+
+Let's calculate the results for test cases and save the results.
+```{r}
+answers<-predict(model, PCtest, type="raw")
+
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+pml_write_files(answers)
+```
+
+
+
+
+
+
+
