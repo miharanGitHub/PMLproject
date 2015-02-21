@@ -73,7 +73,7 @@ if (window.hljs && document.readyState && document.readyState === "complete") {
 test_URL&lt;-&quot;http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv&quot;
 trainSet&lt;-read.csv(training_URL,na.strings=c(&quot;NA&quot;,&quot;&quot;))
 testSet&lt;-read.csv(test_URL,na.strings=c(&quot;NA&quot;,&quot;&quot;))</code></pre>
-<p>This function is a hepler function which find index of fields with no variation or full of missing values.</p>
+<p>This function is a helper function which find index of fields with no variation or full of missing values.</p>
 <pre class="r"><code>un&lt;-function(x){
   if(length(unique(x))==1) {out &lt;- FALSE
   } else {out &lt;- TRUE
